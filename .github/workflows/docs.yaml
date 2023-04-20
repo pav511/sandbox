@@ -1,0 +1,71 @@
+name: Docs
+
+"on":
+  merge_group: {}
+  pull_request: {}
+  push:
+    branches-ignore:
+      # These should always correspond to pull requests, so ignore them for
+      # the push trigger and let them be triggered by the pull_request
+      # trigger, avoiding running the workflow twice.  This is a minor
+      # optimization so there's no need to ensure this is comprehensive.
+      - "dependabot/**"
+      - "gh-readonly-queue/**"
+      - "renovate/**"
+      - "tickets/**"
+      - "u/**"
+    tags:
+      - "*"
+  workflow_dispatch: {}
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Print GitHub event name
+        run: echo "${{ github.event_name }}"
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            docs:
+              - ".github/workflows/docs.yaml"
+              - "docs/**"
+              - "applications/*/Chart.yaml"
+              - "applications/*/values.yaml"
+              - "applications/gafaelfawr/values-*.yaml"
+              - "environments/values-*.yaml"
+
+      - name: Install graphviz
+        if: steps.filter.outputs.docs == 'true'
+        run: sudo apt-get install graphviz
+
+      - name: Build docs
+        if: steps.filter.outputs.docs == 'true'
+        uses: lsst-sqre/run-tox@v1
+        with:
+          python-version: "3.11"
+          tox-envs: docs
+
+      # Only attempt documentation uploads for tagged releases and pull
+      # requests from ticket branches in the same repository. This avoids
+      # version clutter in the docs and failures when a PR doesn't have access
+      # to secrets.
+      - name: Upload to LSST the Docs
+        uses: lsst-sqre/ltd-upload@v1
+        with:
+          project: "phalanx"
+          dir: "docs/_build/html"
+          username: ${{ secrets.LTD_USERNAME }}
+          password: ${{ secrets.LTD_PASSWORD }}
+        if: >-
+          steps.filter.outputs.docs == 'true'
+          && github.event_name != 'merge_group'
+          && (github.event_name != 'pull_request'
+              || startsWith(github.head_ref, 'tickets/'))

@@ -1,0 +1,7 @@
+environment: usdfprod
+fqdn: usdf-rsp.slac.stanford.edu
+vaultPathPrefix: secret/rubin/usdf-rsp
+repoURL: https://github.com/lsst-sqre/phalanx.git
+
+vault-secrets-operator:
+  enabled: true
