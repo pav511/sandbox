@@ -42,20 +42,7 @@ class SecretGenerator:
         `regenerate` attribute is `True`.
         """
         self._pull_secret()
-        self._rsp_alerts()
-        self._butler_secret()
-        self._argo_sso_secret()
-        self._postgres()
-        self._tap()
-        self._nublado()
-        self._nublado2()
-        self._mobu()
-        self._gafaelfawr()
         self._argocd()
-        self._portal()
-        self._vo_cutouts()
-        self._telegraf()
-        self._sherlock()
 
         self.input_field("cert-manager", "enabled", "Use cert-manager? (y/n):")
         use_cert_manager = self.secrets["cert-manager"]["enabled"]
@@ -108,6 +95,7 @@ class SecretGenerator:
         prompt_string = "New filename with contents (empty to not change): "
         fname = input(prompt_string)
 
+        print(f"{self.secrets[component]}")
         if fname:
             with open(fname, "r") as f:
                 self.secrets[component][name] = f.read()
@@ -134,180 +122,12 @@ class SecretGenerator:
         if not self._exists(component, name) or self.regenerate:
             self._set(component, name, new_value)
 
-    def _tap(self):
-        self.input_file(
-            "tap",
-            "google_creds.json",
-            "file containing google service account credentials",
-        )
-
-    def _postgres(self):
-        self._set_generated(
-            "postgres", "exposurelog_password", secrets.token_hex(32)
-        )
-        self._set_generated(
-            "postgres", "gafaelfawr_password", secrets.token_hex(32)
-        )
-        self._set_generated(
-            "postgres", "jupyterhub_password", secrets.token_hex(32)
-        )
-        self._set_generated("postgres", "root_password", secrets.token_hex(64))
-        self._set_generated(
-            "postgres", "vo_cutouts_password", secrets.token_hex(32)
-        )
-        self._set_generated(
-            "postgres", "narrativelog_password", secrets.token_hex(32)
-        )
-
-    def _nublado(self):
-        self._set_generated("nublado", "crypto_key", secrets.token_hex(32))
-        self._set_generated("nublado", "proxy_token", secrets.token_hex(32))
-        self._set_generated(
-            "nublado", "cryptkeeper_key", secrets.token_hex(32)
-        )
-
-        # Pluck the password out of the postgres portion.
-        db_password = self.secrets["postgres"]["jupyterhub_password"]
-        self.secrets["nublado"]["hub_db_password"] = db_password
-
-        slack_webhook = self._get_current("rsp-alerts", "slack-webhook")
-        if slack_webhook:
-            self._set("nublado", "slack_webhook", slack_webhook)
-
-    def _nublado2(self):
-        crypto_key = secrets.token_hex(32)
-        self._set_generated("nublado2", "crypto_key", crypto_key)
-        self._set_generated("nublado2", "proxy_token", secrets.token_hex(32))
-        self._set_generated(
-            "nublado2", "cryptkeeper_key", secrets.token_hex(32)
-        )
-
-        # Pluck the password out of the postgres portion.
-        self.secrets["nublado2"]["hub_db_password"] = self.secrets["postgres"][
-            "jupyterhub_password"
-        ]
-
-    def _mobu(self):
-        self.input_field(
-            "mobu",
-            "ALERT_HOOK",
-            "Slack webhook for reporting mobu alerts. "
-            "Or use None for no alerting.",
-        )
-
-    def _cert_manager(self):
-        self.input_field(
-            "cert-manager",
-            "aws-secret-access-key",
-            "AWS secret access key for zone for DNS cert solver.",
-        )
-
-    def _gafaelfawr(self):
-        key = rsa.generate_private_key(
-            backend=default_backend(), public_exponent=65537, key_size=2048
-        )
-
-        key_bytes = key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption(),
-        )
-
-        self._set_generated(
-            "gafaelfawr", "bootstrap-token", self._generate_gafaelfawr_token()
-        )
-        self._set_generated(
-            "gafaelfawr", "redis-password", os.urandom(32).hex()
-        )
-        self._set_generated(
-            "gafaelfawr", "session-secret", Fernet.generate_key().decode()
-        )
-        self._set_generated("gafaelfawr", "signing-key", key_bytes.decode())
-
-        self.input_field("gafaelfawr", "cloudsql", "Use CloudSQL? (y/n):")
-        use_cloudsql = self.secrets["gafaelfawr"]["cloudsql"]
-        if use_cloudsql == "y":
-            self.input_field(
-                "gafaelfawr", "database-password", "Database password"
-            )
-        elif use_cloudsql == "n":
-            # Pluck the password out of the postgres portion.
-            db_pass = self.secrets["postgres"]["gafaelfawr_password"]
-            self._set("gafaelfawr", "database-password", db_pass)
-        else:
-            raise Exception(
-                f"Invalid gafaelfawr cloudsql value {use_cloudsql}"
-            )
-
-        self.input_field("gafaelfawr", "ldap", "Use LDAP? (y/n):")
-        use_ldap = self.secrets["gafaelfawr"]["ldap"]
-        if use_ldap == "y":
-            self.input_field("gafaelfawr", "ldap-password", "LDAP password")
-
-        self.input_field("gafaelfawr", "auth_type", "Use cilogon or github?")
-        auth_type = self.secrets["gafaelfawr"]["auth_type"]
-        if auth_type == "cilogon":
-            self.input_field(
-                "gafaelfawr", "cilogon-client-secret", "CILogon client secret"
-            )
-            use_ldap = self.secrets["gafaelfawr"]["ldap"]
-            if use_ldap == "y":
-                self.input_field(
-                    "gafaelfawr", "ldap-secret", "LDAP simple bind password"
-                )
-        elif auth_type == "github":
-            self.input_field(
-                "gafaelfawr", "github-client-secret", "GitHub client secret"
-            )
-        elif auth_type == "oidc":
-            self.input_field(
-                "gafaelfawr",
-                "oidc-client-secret",
-                "OpenID Connect client secret",
-            )
-            if use_ldap == "y":
-                self.input_field(
-                    "gafaelfawr", "ldap-secret", "LDAP simple bind password"
-                )
-        else:
-            raise Exception(f"Invalid auth provider {auth_type}")
-
-        slack_webhook = self._get_current("rsp-alerts", "slack-webhook")
-        if slack_webhook:
-            self._set("gafaelfawr", "slack-webhook", slack_webhook)
 
     def _pull_secret(self):
         self.input_file(
             "pull-secret",
             ".dockerconfigjson",
             ".docker/config.json to pull images",
-        )
-
-    def _butler_secret(self):
-        self.input_file(
-            "butler-secret",
-            "aws-credentials.ini",
-            "AWS credentials for butler",
-        )
-        self.input_file(
-            "butler-secret",
-            "butler-gcs-idf-creds.json",
-            "Google credentials for butler",
-        )
-        self.input_file(
-            "butler-secret",
-            "postgres-credentials.txt",
-            "Postgres credentials for butler",
-        )
-
-    def _argo_sso_secret(self):
-        # We aren't currently using this, but might as well generate it
-        # against the day we do.
-        self._set_generated(
-            "argo-sso-secret", "client-id", "argo-workflows-sso"
-        )
-        self._set_generated(
-            "argo-sso-secret", "client-secret", secrets.token_hex(16)
         )
 
     def _ingress_nginx(self):
@@ -346,67 +166,6 @@ class SecretGenerator:
         self._set_generated(
             "argocd", "server.secretkey", secrets.token_hex(16)
         )
-
-    def _telegraf(self):
-        self.input_field(
-            "telegraf",
-            "influx-token",
-            "Token for communicating with monitoring InfluxDB2 instance",
-        )
-        self._set("telegraf", "org-id", "square")
-
-    def _portal(self):
-        pw = secrets.token_hex(32)
-        self._set_generated("portal", "ADMIN_PASSWORD", pw)
-
-    def _vo_cutouts(self):
-        self._set_generated(
-            "vo-cutouts", "redis-password", os.urandom(32).hex()
-        )
-
-        self.input_field("vo-cutouts", "cloudsql", "Use CloudSQL? (y/n):")
-        use_cloudsql = self.secrets["vo-cutouts"]["cloudsql"]
-        if use_cloudsql == "y":
-            self.input_field(
-                "vo-cutouts", "database-password", "Database password"
-            )
-        elif use_cloudsql == "n":
-            # Pluck the password out of the postgres portion.
-            db_pass = self.secrets["postgres"]["vo_cutouts_password"]
-            self._set("vo-cutouts", "database-password", db_pass)
-        else:
-            raise Exception(
-                f"Invalid vo-cutouts cloudsql value {use_cloudsql}"
-            )
-
-        aws = self.secrets["butler-secret"]["aws-credentials.ini"]
-        self._set("vo-cutouts", "aws-credentials", aws)
-        google = self.secrets["butler-secret"]["butler-gcs-idf-creds.json"]
-        self._set("vo-cutouts", "google-credentials", google)
-        postgres = self.secrets["butler-secret"]["postgres-credentials.txt"]
-        self._set("vo-cutouts", "postgres-credentials", postgres)
-
-    def _sherlock(self):
-        """This secret is for sherlock to push status to status.lsst.codes."""
-        publish_key = secrets.token_hex(32)
-        self._set_generated("sherlock", "publish_key", publish_key)
-
-    def _rsp_alerts(self):
-        """Shared secrets for alerting."""
-        self.input_field(
-            "rsp-alerts", "slack-webhook", "Slack webhook for alerts"
-        )
-
-    def _narrativelog(self):
-        """Give narrativelog its own secret for externalization."""
-        db_pass = self.secrets["postgres"]["narrativelog_password"]
-        self._set("narrativelog", "database-password", db_pass)
-
-    def _exposurelog(self):
-        """Give exposurelog its own secret for externalization."""
-        db_pass = self.secrets["postgres"]["exposurelog_password"]
-        self._set("exposureloglog", "database-password", db_pass)
-
 
 class OnePasswordSecretGenerator(SecretGenerator):
     """A secret generator that syncs 1Password secrets into a secrets directory
