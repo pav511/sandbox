@@ -1,0 +1,10 @@
+environment: usdfdev
+fqdn: usdf-sandbox-dev.slac.stanford.edu
+vaultPathPrefix: secret/tid/k8s-sandbox
+# butlerRepositoryIndex: "s3://butler-us-central1-repo-locations/data-repos.yaml"
+repoURL: https://github.com/pav511/sandbox.git
+
+argo-workflows:
+  enabled: false
+vault-secrets-operator:
+  enabled: true

@@ -1,0 +1,9 @@
+environment: eed-sw-fw-build
+fqdn: eed-sw-fw-build.slac.stanford.edu
+vaultPathPrefix: secret/eed/eed-sw/eed-sw-fw-build
+repoURL: https://github.com/pav511/sandbox.git
+
+argo-workflows:
+  enabled: false
+vault-secrets-operator:
+  enabled: false

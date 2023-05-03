@@ -1,0 +1,9 @@
+environment: usdf-rubintv-broadcaster-cleanroom
+fqdn: usdf-rubintv.slac.stanford.edu
+vaultPathPrefix: secret/rubin/usdf-rubintv-broadcaster-cleanroom
+repoURL: https://github.com/pav511/sandbox.git
+
+argo-workflows:
+  enabled: false
+vault-secrets-operator:
+  enabled: false
