@@ -34,6 +34,7 @@ helm upgrade vault-secrets-operator ../applications/vault-secrets-operator \
   --create-namespace \
   --namespace vault-secrets-operator \
   --timeout 5m \
+  --debug \
   --wait
 
 echo "Update / install argocd using helm..."
@@ -46,6 +47,7 @@ helm upgrade argocd ../applications/argocd \
   --create-namespace \
   --namespace argocd \
   --timeout 5m \
+  --debug \
   --wait
 
 #echo "Login to argocd..."

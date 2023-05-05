@@ -7,7 +7,7 @@ export VAULT_SECRET_ID=${3:?$USAGE}
 echo "VAULT_SECRET_ID=${VAULT_SECRET_ID}"
 export VAULT_ADDR=https://vault.slac.stanford.edu
 VAULT_PATH_PREFIX=$(cat ../environments/values-$ENVIRONMENT.yaml | grep vaultPathPrefix | awk '{print $2}')
-ARGOCD_PASSWORD=`vault kv get --field=argocd.admin.plaintext_password $VAULT_PATH_PREFIX/installer`
+ARGOCD_PASSWORD=`vault kv get --field=argocd.admin.plaintext_password $VAULT_PATH_PREFIX/argocd`
 
 GIT_URL=$( git config --get remote.origin.url )
 HTTP_URL=$( echo "$GIT_URL" | sed s%git@%https://% | sed s%github.com:%github.com/% ).git
